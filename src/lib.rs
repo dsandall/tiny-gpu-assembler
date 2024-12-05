@@ -7,10 +7,11 @@ use crate::operation::Operation;
 
 #[derive(Debug)]
 pub struct MachineLine {
+    pub line_type: LineType,
+    pub parsed_line: ParsedLine,
     pub bin: Option<String>,
     pub comment: Option<String>,
     pub line_num: u32,
-    pub parsed_line: ParsedLine,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +117,14 @@ impl LexedLine for BadLine {
     fn parsed(&self) -> &ParsedLine {
         &self.parsed
     }
+}
+#[derive(Debug, PartialEq)]
+pub enum LineType {
+    Operation,
+    Bad,
+    Human,
+    Memory,
+    Label,
 }
 
 #[derive(Debug)]

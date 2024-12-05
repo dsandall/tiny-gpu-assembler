@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::env;
 use std::fs;
@@ -39,15 +40,30 @@ fn operation_conv<'a>(
     // OperationType, &parsedline, label_nums, &lexedlines
 
     if let None = lexed_line.as_any_mut().downcast_mut::<OperationLine>() {
+        // determine the correct type
+        let mut typ: LineType;
+        if let Some(_) = lexed_line.as_any_mut().downcast_mut::<BadLine>() {
+            typ = LineType::Bad;
+        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<HumanLine>() {
+            typ = LineType::Human;
+        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<OperationLine>() {
+            typ = LineType::Operation;
+        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<MemoryLine>() {
+            typ = LineType::Memory;
+        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<LabelLine>() {
+            typ = LineType::Label;
+        } else {
+            return Err(LexError::InvalidArgument("terrible, man".to_owned()));
+        }
         return {
             Ok(MachineLine {
+                line_type: typ,
+                parsed_line: lexed_line.parsed().clone(),
                 bin: None,
                 comment: lexed_line.parsed().comment.clone(),
                 line_num: lexed_line.parsed().line_num,
-                parsed_line: lexed_line.parsed().clone(),
             })
         };
-        
 
         // {Ok (MachineLine {
         //     bin: None,
@@ -67,70 +83,73 @@ fn operation_conv<'a>(
         return Err(LexError::InvalidOperation("".to_string()));
     }
 
+    let operands = &parsed_line.tokens; // this is actually the operator AND the operands. anyway...
+
+    // define closure that (semi)gracefully handles errors that should never occur, rather than making the below match statement unreadable
+    let get_operand_from_ind = |index: u16| {
+        operands
+            .get(index as usize)
+            .expect(&format!("should have {} args", op.num_args()))
+    };
+
     let bin = match op {
         NOP => Ok(op.as_opcode().to_owned() + "000000000000"),
 
         BRnzp => {
             // Immediates
-            let label = parsed_line.tokens.get(1);
+            let req_label = get_operand_from_ind(1);
 
-            if let Some(req_label) = label {
-                let &jump_addr= label_addresses
-                    .iter()
-                    .filter_map(|(label, line_num)| match req_label.find(label) {
-                        Some(_) => Some(line_num.clone()),
-                        None => None,
-                    })
-                    .collect::<Vec<u16>>().get(0).unwrap();
-
-
-                if true {
-                    let code = op.as_opcode().to_owned()
-                        + "1000" // the spec lists this as nzp0, but it appears that it MUST be 1000
-                        + format!("{:08b}", jump_addr as u8).as_str();
-                    Ok(code)
-                } else {
-                    Err(LexError::InvalidArgument("Bad Immediate".into()))
-                }
+            if let Some(jump_addr) = label_addresses
+                .iter()
+                .filter_map(|(label, line_num)| match req_label.find(label) {
+                    Some(_) => Some(line_num.clone()),
+                    None => None,
+                })
+                .collect::<Vec<u16>>()
+                .get(0)
+            {
+                let code = op.as_opcode().to_owned()
+                + "1000" // the spec lists this as nzp0, but it appears that it MUST be 1000
+                + format!("{:08b}", *jump_addr as u8).as_str();
+                Ok(code)
             } else {
                 Err(LexError::InvalidArgument("Bad Immediate".into()))
             }
         }
-        
 
         CMP => {
             // CMP Rs, Rt
-            let Rs = Register::from_str(parsed_line.tokens.get(1).expect("should have 2 args"))?;
-            let Rt = Register::from_str(parsed_line.tokens.get(2).expect("should have 2 args"))?;
+            let Rs = Register::from_str(get_operand_from_ind(1))?;
+            let Rt = Register::from_str(get_operand_from_ind(2))?;
             let code = "00100000".to_owned() + Rs.bits() + Rt.bits();
             Ok(code)
         }
 
         ADD | SUB | MUL | DIV => {
             // ADD Rd, Rs, Rt
-            let Rd = Register::from_str(parsed_line.tokens.get(1).expect("should have 2 args"))?;
-            let Rs = Register::from_str(parsed_line.tokens.get(2).expect("should have 2 args"))?;
-            let Rt = Register::from_str(parsed_line.tokens.get(3).expect("should have 2 args"))?;
+            let Rd = Register::from_str(get_operand_from_ind(1))?;
+            let Rs = Register::from_str(get_operand_from_ind(2))?;
+            let Rt = Register::from_str(get_operand_from_ind(3))?;
             let code = op.as_opcode().to_owned() + Rd.bits() + Rs.bits() + Rt.bits();
             Ok(code)
         }
 
         Operation::LDR => {
-            let Rd = Register::from_str(parsed_line.tokens.get(1).expect("should have 2 args"))?;
-            let Rs = Register::from_str(parsed_line.tokens.get(2).expect("should have 2 args"))?;
+            let Rd = Register::from_str(get_operand_from_ind(1))?;
+            let Rs = Register::from_str(get_operand_from_ind(2))?;
             let code = op.as_opcode().to_owned() + Rd.bits() + Rs.bits() + "0000";
             Ok(code)
         }
 
         Operation::STR => {
-            let Rs = Register::from_str(parsed_line.tokens.get(1).expect("should have 2 args"))?;
-            let Rt = Register::from_str(parsed_line.tokens.get(2).expect("should have 2 args"))?;
+            let Rs = Register::from_str(get_operand_from_ind(1))?;
+            let Rt = Register::from_str(get_operand_from_ind(2))?;
             let code = op.as_opcode().to_owned() + "0000" + Rs.bits() + Rt.bits();
             Ok(code)
         }
         Operation::CONST => {
-            let Rd = Register::from_str(parsed_line.tokens.get(1).expect("should have 2 args"))?;
-            let imm8 = parsed_line.tokens.get(2).expect("should have 2 args");
+            let Rd = Register::from_str(get_operand_from_ind(1))?;
+            let imm8 = get_operand_from_ind(2);
             let imm8 = imm8.replace("#", "");
 
             if imm8.parse::<u8>().is_ok() {
@@ -150,6 +169,7 @@ fn operation_conv<'a>(
 
     if bin.is_ok() {
         Ok(MachineLine {
+            line_type: LineType::Operation,
             bin: bin.ok(),
             comment: parsed_line.comment.clone(),
             line_num: parsed_line.line_num,
@@ -160,30 +180,12 @@ fn operation_conv<'a>(
     }
 }
 
-// fn gex<'a>(lexed_line: Box<dyn LexedLine>, label_numbers: &Vec<(String, u32)>, lexed_lines: & Vec<Box<dyn LexedLine>>) -> Result<MachineLine<'a>, LexError> {
-
-//     // let mapped = Operation::from_str(inner);
-
-//     // if mapped.is_ok() {
-//     //     more_lex(mapped.unwrap(), lexed_line)
-//     // } else {
-//     //     // if the first token is invalid
-//     //     println!("{}", inner);
-//     //     println!("Code cannot be mapped!");
-//     //     Err(LexError::InvalidOperation(inner.to_string()))
-//     // }
-
-// }
-
 fn extract_label_assoc_lines(lexed_lines: &Vec<Box<dyn LexedLine>>) -> Vec<(String, u32)> {
     // handle Memory and labels (labels must be done prior to operations)
     let mut labels_lines: Vec<(String, u32)> = vec![]; //maps a Label String to the next line number which is a valid operation
 
     for line in lexed_lines {
-        if let Some(_memory_line) = line.as_any().downcast_ref::<MemoryLine>() {
-            // handle all memory lines
-            // we don't actually need to do anything here until printing occurs
-        } else if let Some(label_line) = line.as_any().downcast_ref::<LabelLine>() {
+        if let Some(label_line) = line.as_any().downcast_ref::<LabelLine>() {
             // handle all label lines
             if label_line.parsed.tokens.len() != 1 {
                 todo!()
@@ -237,14 +239,14 @@ fn main() {
         .enumerate()
         .filter_map(|(line_num, line)| parse_line(line_num, line))
         .collect();
-    dbg!(&parsed_lines);
+    // dbg!(&parsed_lines);
 
     let mut lexed_lines: Vec<Box<dyn LexedLine>> = parsed_lines
         .into_iter()
         .map(|item| identify_line(item))
         .collect();
 
-    dbg!(&lexed_lines);
+    // dbg!(&lexed_lines);
 
     let mut label_lines = extract_label_assoc_lines(&lexed_lines);
 
@@ -277,47 +279,110 @@ fn main() {
         })
         .collect(); //todo!() complete conversion into address num (baked into struct)
 
-    dbg!(&label_addresses);
+    // dbg!(&label_addresses);
 
     let gexed_lines: Vec<Result<MachineLine, LexError>> = lexed_lines
         .into_iter()
         .map(|line| operation_conv(line, label_addresses.clone()))
         .collect();
 
-    dbg!(&gexed_lines);
+    // dbg!(&gexed_lines);
 
     //// Do Printing
+    ///
+    println!("# Assembled output for {file_path}");
 
     // Column widths
     let width1 = 19; // +1 for the comma +2 for 0b
     let width2 = 30;
     let width3 = 0; // no padding on final line
+
+    let mut memories: Vec<MachineLine> = vec![];
+
     for line in gexed_lines {
         match line {
             Ok(magic_sparkles) => {
-                let fmt_bin = match magic_sparkles.bin {
-                    Some(bin) => "0b".to_owned() + &bin + ",",
-                    None => "".to_owned(),
-                };
+                match magic_sparkles.line_type {
+                    LineType::Memory => {
+                        memories.push(magic_sparkles);
+                        // dbg!(&magic_sparkles);
+                        //tokens seperated by a comma + space, seperated from the comment with a #
+                    }
+                    LineType::Human => {
+                        // don't print blank lines for now, please and thank you
+                    }
+                    // LineType::Bad => {}, //todo: this should probably be handled similarly to the Err statement at the end (maybe seperate error types? )
+                    // LineType::Label=> {},
+                    _ => {
+                        let fmt_bin = match magic_sparkles.bin {
+                            Some(bin) => "0b".to_owned() + &bin + ",",
+                            None => "".to_owned(),
+                        };
 
-                let comment = match magic_sparkles.comment {
-                    Some(comment) => "; ".to_owned() + &comment,
-                    None => "".to_owned(),
-                };
+                        let comment = match magic_sparkles.comment {
+                            Some(comment) => "; ".to_owned() + &comment,
+                            None => "".to_owned(),
+                        };
 
-                println!(
-                    "{:<width1$} # {:<width2$} {:<width3$}",
-                    fmt_bin,
-                    magic_sparkles.parsed_line.tokens.join(" "),
-                    comment
-                );
+                        println!(
+                            "{:<width1$} # {:<width2$} {:<width3$}",
+                            fmt_bin,
+                            magic_sparkles.parsed_line.tokens.join(" "),
+                            comment
+                        );
+                    }
+                }
             }
-
             Err(scary_monsters) => {
                 dbg!(scary_monsters);
             }
         }
     }
 
-    println!("In file {file_path}");
+    //seperate memory lines by data location
+    let mut data_lines = vec![];
+    let mut target_threads = vec![];
+
+    for mem in memories {
+        match mem.parsed_line.tokens.get(0).unwrap().as_str() {
+            ".data" => data_lines.push(mem),
+            ".threads" => target_threads.push(mem),
+            _ => todo!(),
+        }
+    }
+
+    println!();
+
+    println!("# .data");
+    let end = data_lines.len() - 1;
+    for (ind, data) in data_lines.into_iter().enumerate() {
+        // let name = mem.parsed_line.tokens.get(0);
+        let a: Vec<String> = (data.parsed_line.tokens.clone())
+            .split_off(1)
+            .into_iter()
+            .map(|f| f.to_owned() + ", ")
+            .collect();
+        let mut b = a.concat();
+
+        if ind == end {
+            b = b.strip_suffix(", ").unwrap_or("").to_string();
+        }
+
+        // println!("{}", name.unwrap_or(&"".to_string()));
+        let w = 24;
+        println!("{:<w$} # {}", b, data.comment.unwrap_or("".to_string()))
+    }
+
+    println!();
+
+    println!(
+        "remember to specify thread count ({}) in the testbench!",
+        target_threads
+            .get(0)
+            .unwrap()
+            .parsed_line
+            .tokens
+            .get(1)
+            .unwrap()
+    );
 }
