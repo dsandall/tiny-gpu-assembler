@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::error::Error;
-use std::{boxed, fmt};
+use std::fmt;
+use std::str::FromStr;
 
 pub mod operation;
 use crate::operation::Operation;
@@ -22,16 +23,16 @@ pub struct ParsedLine {
 }
 
 pub fn identify_line(line: ParsedLine) -> Box<dyn LexedLine> {
-    match line.tokens.get(0) {
+    match line.tokens.first() {
         Some(first_token) => {
-            let is_memory_dir = |a: &String| a.chars().nth(0).is_some_and(|char_1| char_1 == '.'); //checks if the first token is a memory directive
+            let is_memory_dir = |a: &String| a.chars().next().is_some_and(|char_1| char_1 == '.'); //checks if the first token is a memory directive
             let is_label = |a: &String| a.chars().last().is_some_and(|char_1| char_1 == ':'); //checks if the first token is a label
 
             if is_memory_dir(first_token) {
                 Box::new(MemoryLine { parsed: line })
             } else if is_label(first_token) {
                 Box::new(LabelLine { parsed: line })
-            } else if Operation::from_str(&first_token).is_ok() {
+            } else if Operation::from_str(first_token).is_ok() {
                 Box::new(OperationLine {
                     parsed: line,
                     instruct_num: None,

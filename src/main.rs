@@ -1,8 +1,7 @@
-use std::borrow::Borrow;
-use std::cmp::Ordering;
 use std::env;
 use std::fs;
 use std::ops::Index;
+use std::str::FromStr;
 
 use lib::operation::Operation;
 use lib::operation::Operation::*;
@@ -39,18 +38,18 @@ fn operation_conv<'a>(
     // operation_conv(a, &operation.parsed, label_numbers, &lexed_lines)
     // OperationType, &parsedline, label_nums, &lexedlines
 
-    if let None = lexed_line.as_any_mut().downcast_mut::<OperationLine>() {
+    if lexed_line.as_any_mut().downcast_mut::<OperationLine>().is_none() {
         // determine the correct type
-        let mut typ: LineType;
-        if let Some(_) = lexed_line.as_any_mut().downcast_mut::<BadLine>() {
+        let typ: LineType;
+        if lexed_line.as_any_mut().downcast_mut::<BadLine>().is_some() {
             typ = LineType::Bad;
-        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<HumanLine>() {
+        } else if lexed_line.as_any_mut().downcast_mut::<HumanLine>().is_some() {
             typ = LineType::Human;
-        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<OperationLine>() {
+        } else if lexed_line.as_any_mut().downcast_mut::<OperationLine>().is_some() {
             typ = LineType::Operation;
-        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<MemoryLine>() {
+        } else if lexed_line.as_any_mut().downcast_mut::<MemoryLine>().is_some() {
             typ = LineType::Memory;
-        } else if let Some(_) = lexed_line.as_any_mut().downcast_mut::<LabelLine>() {
+        } else if lexed_line.as_any_mut().downcast_mut::<LabelLine>().is_some() {
             typ = LineType::Label;
         } else {
             return Err(LexError::InvalidArgument("terrible, man".to_owned()));
@@ -76,7 +75,7 @@ fn operation_conv<'a>(
     }
 
     let operation_line = lexed_line.as_any().downcast_ref::<OperationLine>().unwrap();
-    let op: Operation = Operation::from_str(operation_line.parsed.tokens.get(0).unwrap()).unwrap();
+    let op: Operation = Operation::from_str(operation_line.parsed.tokens.first().unwrap()).unwrap();
     let parsed_line = operation_line.parsed.clone();
 
     if op.num_args() != parsed_line.tokens.len() as u8 - 1 {
@@ -89,7 +88,7 @@ fn operation_conv<'a>(
     let get_operand_from_ind = |index: u16| {
         operands
             .get(index as usize)
-            .expect(&format!("should have {} args", op.num_args()))
+            .unwrap_or_else(|| panic!("should have {} args", op.num_args()))
     };
 
     let bin = match op {
@@ -101,12 +100,8 @@ fn operation_conv<'a>(
 
             if let Some(jump_addr) = label_addresses
                 .iter()
-                .filter_map(|(label, line_num)| match req_label.find(label) {
-                    Some(_) => Some(line_num.clone()),
-                    None => None,
-                })
-                .collect::<Vec<u16>>()
-                .get(0)
+                .filter_map(|(label, line_num)| req_label.find(label).map(|_| *line_num))
+                .collect::<Vec<u16>>().first()
             {
                 let code = op.as_opcode().to_owned()
                 + "1000" // the spec lists this as nzp0, but it appears that it MUST be 1000
@@ -173,7 +168,7 @@ fn operation_conv<'a>(
             bin: bin.ok(),
             comment: parsed_line.comment.clone(),
             line_num: parsed_line.line_num,
-            parsed_line: parsed_line,
+            parsed_line,
         })
     } else {
         Err(bin.err().unwrap())
@@ -192,8 +187,7 @@ fn extract_label_assoc_lines(lexed_lines: &Vec<Box<dyn LexedLine>>) -> Vec<(Stri
             } else {
                 let label = label_line
                     .parsed
-                    .tokens
-                    .get(0)
+                    .tokens.first()
                     .unwrap()
                     .clone()
                     .replace(":", "");
@@ -201,7 +195,7 @@ fn extract_label_assoc_lines(lexed_lines: &Vec<Box<dyn LexedLine>>) -> Vec<(Stri
 
                 //// go through the parsed lines and find the next operation line
                 let line_number: u32; //a place to store the line number we find in the following loop
-                let mut i = num.clone(); //loop variable
+                let mut i = num; //loop variable
 
                 loop {
                     let check_line = lexed_lines.index(i as usize);
@@ -248,7 +242,7 @@ fn main() {
 
     // dbg!(&lexed_lines);
 
-    let mut label_lines = extract_label_assoc_lines(&lexed_lines);
+    let label_lines = extract_label_assoc_lines(&lexed_lines);
 
     //// now that the label list is generated, it's possible to statically point branch/jump instructs
     // number the instructions based on the actual address (is there a better method? almost certainly!)
@@ -344,7 +338,7 @@ fn main() {
     let mut target_threads = vec![];
 
     for mem in memories {
-        match mem.parsed_line.tokens.get(0).unwrap().as_str() {
+        match mem.parsed_line.tokens.first().unwrap().as_str() {
             ".data" => data_lines.push(mem),
             ".threads" => target_threads.push(mem),
             _ => todo!(),
@@ -377,8 +371,7 @@ fn main() {
 
     println!(
         "remember to specify thread count ({}) in the testbench!",
-        target_threads
-            .get(0)
+        target_threads.first()
             .unwrap()
             .parsed_line
             .tokens

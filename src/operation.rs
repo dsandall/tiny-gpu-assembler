@@ -1,3 +1,5 @@
+use std::fmt;
+use std::str::FromStr;
 #[derive(Debug)]
 pub enum Operation {
     NOP,   // No operation
@@ -11,6 +13,50 @@ pub enum Operation {
     STR,   // Store to memory
     CONST, // Load constant
     RET,   // Return from function
+}
+
+#[derive(Debug)]
+pub enum ParseOperationError {
+    InvalidOperation(String),
+}
+
+// Implement the `Error` trait for `ParseOperationError`
+impl fmt::Display for ParseOperationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ParseOperationError::InvalidOperation(ref op) => {
+                write!(f, "Invalid operation: {}", op)
+            }
+        }
+    }
+}
+
+impl std::error::Error for ParseOperationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None // No underlying source of error, it's just an invalid operation
+    }
+}
+
+impl FromStr for Operation {
+    type Err = ParseOperationError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "NOP" => Ok(Operation::NOP),
+            "BRnzp" => Ok(Operation::BRnzp),
+            "BRn" => Ok(Operation::BRnzp), // Assuming BRn maps to BRnzp
+            "CMP" => Ok(Operation::CMP),
+            "ADD" => Ok(Operation::ADD),
+            "SUB" => Ok(Operation::SUB),
+            "MUL" => Ok(Operation::MUL),
+            "DIV" => Ok(Operation::DIV),
+            "LDR" => Ok(Operation::LDR),
+            "STR" => Ok(Operation::STR),
+            "CONST" => Ok(Operation::CONST),
+            "RET" => Ok(Operation::RET),
+            _ => Err(ParseOperationError::InvalidOperation(s.to_string())),
+        }
+    }
 }
 
 impl Operation {
@@ -60,25 +106,6 @@ impl Operation {
             Operation::STR => 2,
             Operation::CONST => 2,
             Operation::RET => 0,
-        }
-    }
-
-    // A method to parse a string into an Operation enum
-    pub fn from_str(s: &str) -> Result<Self, ()> {
-        match s {
-            "NOP" => Ok(Operation::NOP),
-            "BRnzp" => Ok(Operation::BRnzp),
-            "BRn" => Ok(Operation::BRnzp), //not super clear from documentation which is "proper" or if both are OK
-            "CMP" => Ok(Operation::CMP),
-            "ADD" => Ok(Operation::ADD),
-            "SUB" => Ok(Operation::SUB),
-            "MUL" => Ok(Operation::MUL),
-            "DIV" => Ok(Operation::DIV),
-            "LDR" => Ok(Operation::LDR),
-            "STR" => Ok(Operation::STR),
-            "CONST" => Ok(Operation::CONST),
-            "RET" => Ok(Operation::RET),
-            _ => Err(()),
         }
     }
 }
