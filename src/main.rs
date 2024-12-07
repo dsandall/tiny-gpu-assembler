@@ -38,18 +38,38 @@ fn operation_conv<'a>(
     // operation_conv(a, &operation.parsed, label_numbers, &lexed_lines)
     // OperationType, &parsedline, label_nums, &lexedlines
 
-    if lexed_line.as_any_mut().downcast_mut::<OperationLine>().is_none() {
+    if lexed_line
+        .as_any_mut()
+        .downcast_mut::<OperationLine>()
+        .is_none()
+    {
         // determine the correct type
         let typ: LineType;
         if lexed_line.as_any_mut().downcast_mut::<BadLine>().is_some() {
             typ = LineType::Bad;
-        } else if lexed_line.as_any_mut().downcast_mut::<HumanLine>().is_some() {
+        } else if lexed_line
+            .as_any_mut()
+            .downcast_mut::<HumanLine>()
+            .is_some()
+        {
             typ = LineType::Human;
-        } else if lexed_line.as_any_mut().downcast_mut::<OperationLine>().is_some() {
+        } else if lexed_line
+            .as_any_mut()
+            .downcast_mut::<OperationLine>()
+            .is_some()
+        {
             typ = LineType::Operation;
-        } else if lexed_line.as_any_mut().downcast_mut::<MemoryLine>().is_some() {
+        } else if lexed_line
+            .as_any_mut()
+            .downcast_mut::<MemoryLine>()
+            .is_some()
+        {
             typ = LineType::Memory;
-        } else if lexed_line.as_any_mut().downcast_mut::<LabelLine>().is_some() {
+        } else if lexed_line
+            .as_any_mut()
+            .downcast_mut::<LabelLine>()
+            .is_some()
+        {
             typ = LineType::Label;
         } else {
             return Err(LexError::InvalidArgument("terrible, man".to_owned()));
@@ -95,48 +115,51 @@ fn operation_conv<'a>(
         NOP => Ok(op.as_opcode().to_owned() + "000000000000"),
 
         BRnzp => {
-
             //// NZP Shenanigans
 
             let branch_instr_string = get_operand_from_ind(0);
             // Extract the "nzp" flags
             let nzp_flags: String = branch_instr_string
-            .chars()
-            .filter(|&c| c == 'n' || c == 'z' || c == 'p')
-            .collect();
-        
+                .chars()
+                .filter(|&c| c == 'n' || c == 'z' || c == 'p')
+                .collect();
+
             // dbg!(nzp_flags);
             // panic!();
             // Default to "1000" if no flags are found, as per the spec
             let nzp = if nzp_flags.is_empty() {
-                "0000".to_string()  // Default value if no flags are present
+                "0000".to_string() // Default value if no flags are present
             } else {
                 // Here you could further process or map the flags into the correct string
                 // For simplicity, just use the flags directly
-                format!("{:04b}", nzp_flags.chars().fold(0, |acc, flag| {
-                    (acc << 1) | match flag {
-                        'n' => 8,
-                        'z' => 4,
-                        'p' => 2,
-                        _ => 0,
-                    }
-                }))
+                format!(
+                    "{:04b}",
+                    nzp_flags.chars().fold(0, |acc, flag| {
+                        (acc << 1)
+                            | match flag {
+                                'n' => 8,
+                                'z' => 4,
+                                'p' => 2,
+                                _ => 0,
+                            }
+                    })
+                )
             };
 
             if nzp == "0000" {
                 return Err(LexError::InvalidArgument("Branch instruction with no NZP flags - will never branch. Did you mean to branch in all cases? (BRnzp)".into()));
             }
-            
+
             //// end of nzp shenanigans
-                        
 
             // Get the operand (the label or flags part)
             let req_label = get_operand_from_ind(1);
-            
+
             if let Some(jump_addr) = label_addresses
                 .iter()
                 .filter_map(|(label, line_num)| req_label.find(label).map(|_| *line_num))
-                .collect::<Vec<u16>>().first()
+                .collect::<Vec<u16>>()
+                .first()
             {
                 let code = op.as_opcode().to_owned()
                     + &nzp          // Add the "nzp" flags part to the opcode
@@ -146,7 +169,6 @@ fn operation_conv<'a>(
                 Err(LexError::InvalidArgument("Bad Immediate".into()))
             }
         }
-        
 
         CMP => {
             // CMP Rs, Rt
@@ -223,7 +245,8 @@ fn extract_label_assoc_lines(lexed_lines: &Vec<Box<dyn LexedLine>>) -> Vec<(Stri
             } else {
                 let label = label_line
                     .parsed
-                    .tokens.first()
+                    .tokens
+                    .first()
                     .unwrap()
                     .clone()
                     .replace(":", "");
@@ -407,7 +430,8 @@ fn main() {
 
     println!(
         "remember to specify thread count ({}) in the testbench!",
-        target_threads.first()
+        target_threads
+            .first()
             .unwrap()
             .parsed_line
             .tokens

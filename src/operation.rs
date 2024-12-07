@@ -65,7 +65,7 @@ pub fn remove_trailing_br_flags(s: &str) -> &str {
         let trimmed = s.trim_end_matches(|c| c == 'n' || c == 'z' || c == 'p');
         return trimmed;
     }
-    s  // Return the string as is if it doesn't start with "BR"
+    s // Return the string as is if it doesn't start with "BR"
 }
 
 impl Operation {
