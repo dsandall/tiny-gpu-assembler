@@ -32,7 +32,7 @@ pub fn identify_line(line: ParsedLine) -> Box<dyn LexedLine> {
                 Box::new(MemoryLine { parsed: line })
             } else if is_label(first_token) {
                 Box::new(LabelLine { parsed: line })
-            } else if Operation::from_str(first_token).is_ok() {
+            } else if Operation::from_str(&first_token).is_ok() {
                 Box::new(OperationLine {
                     parsed: line,
                     instruct_num: None,

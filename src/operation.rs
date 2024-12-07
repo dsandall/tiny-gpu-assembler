@@ -41,10 +41,9 @@ impl FromStr for Operation {
     type Err = ParseOperationError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match remove_trailing_br_flags(s) {
             "NOP" => Ok(Operation::NOP),
-            "BRnzp" => Ok(Operation::BRnzp),
-            "BRn" => Ok(Operation::BRnzp), // Assuming BRn maps to BRnzp
+            "BR" => Ok(Operation::BRnzp),
             "CMP" => Ok(Operation::CMP),
             "ADD" => Ok(Operation::ADD),
             "SUB" => Ok(Operation::SUB),
@@ -57,6 +56,16 @@ impl FromStr for Operation {
             _ => Err(ParseOperationError::InvalidOperation(s.to_string())),
         }
     }
+}
+
+pub fn remove_trailing_br_flags(s: &str) -> &str {
+    // Check if the string starts with "BR"
+    if s.starts_with("BR") {
+        // Remove trailing 'n', 'z', or 'p'
+        let trimmed = s.trim_end_matches(|c| c == 'n' || c == 'z' || c == 'p');
+        return trimmed;
+    }
+    s  // Return the string as is if it doesn't start with "BR"
 }
 
 impl Operation {
