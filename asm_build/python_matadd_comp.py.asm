@@ -1,5 +1,5 @@
 ///////////
-python_matadd_comp.txt
+python_matadd_comp.txt (reference code, from initial TinyCache implementation)
 
 0b0101000011011110, # MUL R0, %blockIdx, %blockDim
 0b0011000000001111, # ADD R0, R0, %threadIdx         ; i = blockIdx * blockDim + threadIdx
