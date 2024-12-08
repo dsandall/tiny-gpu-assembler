@@ -339,7 +339,7 @@ fn main() {
         .map(|line| operation_conv(line, label_addresses.clone()))
         .collect();
 
-    dbg!(&gexed_lines);
+    // dbg!(&gexed_lines);
 
     //// Do Printing
     ///
@@ -364,7 +364,27 @@ fn main() {
                     LineType::Human => {
                         // don't print blank lines for now, please and thank you
                     }
-                    // LineType::Bad => {}, //todo: this should probably be handled similarly to the Err statement at the end (maybe seperate error types? )
+                    LineType::Bad => {
+                        
+                        println!("// ; Badline compile error");
+
+                        let fmt_bin = match magic_sparkles.bin {
+                            Some(bin) => "0b".to_owned() + &bin + ",",
+                            None => "".to_owned(),
+                        };
+
+                        let comment = match magic_sparkles.comment {
+                            Some(comment) => "; ".to_owned() + &comment,
+                            None => "".to_owned(),
+                        };
+
+                        println!(
+                            "{:<width1$} # {:<width2$} {:<width3$}",
+                            fmt_bin,
+                            magic_sparkles.parsed_line.tokens.join(" "),
+                            comment
+                        );
+                    }, //todo: this should probably be handled similarly to the Err statement at the end (maybe seperate error types? )
                     // LineType::Label=> {},
                     _ => {
                         let fmt_bin = match magic_sparkles.bin {
