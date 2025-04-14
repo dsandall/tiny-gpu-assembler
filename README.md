@@ -1,6 +1,11 @@
 # tiny-gpu-assembler
 ### A bare minimum assembler for the TinyGPU ISA
 
+# Usage:
+- install rust and cargo
+- ``cargo run [source.asm] > [output.py.asm]
+- make sure to test any generated code with a sensible test case using the CocoTB simulator
+
 # Repository Contents
 - src/
     - source files for building the assembler
