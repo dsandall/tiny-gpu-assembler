@@ -6,6 +6,9 @@ use std::str::FromStr;
 use lib::operation::Operation;
 use lib::operation::Operation::*;
 use lib::*;
+use serde::Serialize;
+use serde_json;
+use std::path::Path;
 
 fn parse_line(line_num: usize, line: &str) -> Option<ParsedLine> {
     // remove trailing/leading whitespace
@@ -339,123 +342,98 @@ fn main() {
         .map(|line| operation_conv(line, label_addresses.clone()))
         .collect();
 
-    // dbg!(&gexed_lines);
+    // Construct JSON output
 
-    //// Do Printing
-    ///
-    println!("# Assembled output for {file_path}");
-
-    // Column widths
-    let width1 = 19; // +1 for the comma +2 for 0b
-    let width2 = 30;
-    let width3 = 0; // no padding on final line
-
-    let mut memories: Vec<MachineLine> = vec![];
-
-    for line in gexed_lines {
-        match line {
-            Ok(magic_sparkles) => {
-                match magic_sparkles.line_type {
-                    LineType::Memory => {
-                        memories.push(magic_sparkles);
-                        // dbg!(&magic_sparkles);
-                        //tokens seperated by a comma + space, seperated from the comment with a #
-                    }
-                    LineType::Human => {
-                        // don't print blank lines for now, please and thank you
-                    }
-                    LineType::Bad => {
-                        
-                        println!("// ; Badline compile error");
-
-                        let fmt_bin = match magic_sparkles.bin {
-                            Some(bin) => "0b".to_owned() + &bin + ",",
-                            None => "".to_owned(),
-                        };
-
-                        let comment = match magic_sparkles.comment {
-                            Some(comment) => "; ".to_owned() + &comment,
-                            None => "".to_owned(),
-                        };
-
-                        println!(
-                            "{:<width1$} # {:<width2$} {:<width3$}",
-                            fmt_bin,
-                            magic_sparkles.parsed_line.tokens.join(" "),
-                            comment
-                        );
-                    }, //todo: this should probably be handled similarly to the Err statement at the end (maybe seperate error types? )
-                    // LineType::Label=> {},
-                    _ => {
-                        let fmt_bin = match magic_sparkles.bin {
-                            Some(bin) => "0b".to_owned() + &bin + ",",
-                            None => "".to_owned(),
-                        };
-
-                        let comment = match magic_sparkles.comment {
-                            Some(comment) => "; ".to_owned() + &comment,
-                            None => "".to_owned(),
-                        };
-
-                        println!(
-                            "{:<width1$} # {:<width2$} {:<width3$}",
-                            fmt_bin,
-                            magic_sparkles.parsed_line.tokens.join(" "),
-                            comment
-                        );
-                    }
+    // Separate operation and memory lines
+    let mut operations: Vec<MachineLine> = Vec::new();
+    let mut memories: Vec<MachineLine> = Vec::new();
+    for res in gexed_lines {
+        match res {
+            Ok(line) => {
+                if line.line_type == LineType::Operation {
+                    operations.push(line);
+                } else if line.line_type == LineType::Memory {
+                    memories.push(line);
                 }
             }
-            Err(scary_monsters) => {
-                dbg!(scary_monsters);
+            Err(err) => {
+                eprintln!("Error assembling line: {:?}", err);
+                std::process::exit(1);
             }
         }
     }
 
-    //seperate memory lines by data location
-    let mut data_lines = vec![];
-    let mut target_threads = vec![];
+    // Extract threads count (from .threads directive)
+    let threads = memories
+        .iter()
+        .find(|m| m.parsed_line.tokens.first().unwrap() == ".threads")
+        .and_then(|m| m.parsed_line.tokens.get(1))
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(1);
 
-    for mem in memories {
-        match mem.parsed_line.tokens.first().unwrap().as_str() {
-            ".data" => data_lines.push(mem),
-            ".threads" => target_threads.push(mem),
-            _ => todo!(),
-        }
+    // Extract data channels count (number of values in .data directive)
+    let data_channels = memories
+        .iter()
+        .find(|m| m.parsed_line.tokens.first().unwrap() == ".data")
+        .map(|m| (m.parsed_line.tokens.len() as u32) - 1)
+        .unwrap_or(0);
+
+    // Convert operations to hex strings
+    let program_memory: Vec<String> = operations
+        .into_iter()
+        .map(|m| {
+            let bin = m.bin.unwrap();
+            let value = u16::from_str_radix(&bin, 2).unwrap();
+            format!("0x{:04x}", value)
+        })
+        .collect();
+
+    #[derive(Serialize)]
+    struct Hardware {
+        program_addr_bits: u32,
+        program_data_bits: u32,
+        program_channels: u32,
+        data_addr_bits: u32,
+        data_data_bits: u32,
+        data_channels: u32,
     }
 
-    println!();
-
-    println!("# .data");
-    let end = data_lines.len() - 1;
-    for (ind, data) in data_lines.into_iter().enumerate() {
-        // let name = mem.parsed_line.tokens.get(0);
-        let a: Vec<String> = (data.parsed_line.tokens.clone())
-            .split_off(1)
-            .into_iter()
-            .map(|f| f.to_owned() + ", ")
-            .collect();
-        let mut b = a.concat();
-
-        if ind == end {
-            b = b.strip_suffix(", ").unwrap_or("").to_string();
-        }
-
-        // println!("{}", name.unwrap_or(&"".to_string()));
-        let w = 24;
-        println!("{:<w$} # {}", b, data.comment.unwrap_or("".to_string()))
+    #[derive(Serialize)]
+    struct Output {
+        testname: String,
+        memory_delay: u32,
+        threads: u32,
+        program_memory: Vec<String>,
+        hardware: Hardware,
     }
 
-    println!();
+    // Build output
+    let testname = Path::new(file_path)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let memory_delay = 1;
+    let hardware = Hardware {
+        program_addr_bits: 8,
+        program_data_bits: 16,
+        program_channels: 1,
+        data_addr_bits: 8,
+        data_data_bits: 8,
+        data_channels,
+    };
+    let output = Output {
+        testname,
+        memory_delay,
+        threads,
+        program_memory,
+        hardware,
+    };
 
+    // Print JSON to stdout
     println!(
-        "remember to specify thread count ({}) in the testbench!",
-        target_threads
-            .first()
-            .unwrap()
-            .parsed_line
-            .tokens
-            .get(1)
-            .unwrap()
+        "{}",
+        serde_json::to_string_pretty(&output).unwrap()
     );
 }

@@ -3,10 +3,11 @@
   "memory_delay": 1,
   "threads": 4,
   "program_memory": [
+    "0x9005",
     "0x9103",
     "0x9200",
     "0x8021",
-    "0xF000"
+    "0xf000"
   ],
   "hardware": {
     "program_addr_bits": 8,
