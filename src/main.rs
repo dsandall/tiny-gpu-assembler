@@ -421,7 +421,7 @@ fn main() {
         program_channels: 1,
         data_addr_bits: 8,
         data_data_bits: 8,
-        data_channels,
+        data_channels: 4,
     };
     let output = Output {
         testname,
@@ -432,8 +432,5 @@ fn main() {
     };
 
     // Print JSON to stdout
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&output).unwrap()
-    );
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
