@@ -2,13 +2,6 @@
   "testname": "test_negatives",
   "memory_delay": 1,
   "threads": 4,
-  "program_memory": [
-    "0x9005",
-    "0x9103",
-    "0x9200",
-    "0x8021",
-    "0xf000"
-  ],
   "hardware": {
     "program_addr_bits": 8,
     "program_data_bits": 16,
@@ -16,5 +9,19 @@
     "data_addr_bits": 8,
     "data_data_bits": 8,
     "data_channels": 4
-  }
+  },
+  "program_memory": [
+    "0x9005",
+    "0x9103",
+    "0x9200",
+    "0x4121",
+    "0x8021",
+    "0xf000"
+  ],
+  "initial_data": [
+    0,
+    0,
+    0,
+    0
+  ]
 }

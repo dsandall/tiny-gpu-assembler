@@ -7,7 +7,6 @@ use lib::operation::Operation;
 use lib::operation::Operation::*;
 use lib::*;
 use serde::Serialize;
-use serde_json;
 use std::path::Path;
 
 fn parse_line(line_num: usize, line: &str) -> Option<ParsedLine> {
@@ -34,7 +33,7 @@ fn parse_line(line_num: usize, line: &str) -> Option<ParsedLine> {
     })
 }
 
-fn operation_conv<'a>(
+fn operation_conv(
     mut lexed_line: Box<dyn LexedLine>,
     label_addresses: Vec<(String, u16)>,
 ) -> Result<MachineLine, LexError> {
@@ -175,42 +174,42 @@ fn operation_conv<'a>(
 
         CMP => {
             // CMP Rs, Rt
-            let Rs = Register::from_str(get_operand_from_ind(1))?;
-            let Rt = Register::from_str(get_operand_from_ind(2))?;
-            let code = "00100000".to_owned() + Rs.bits() + Rt.bits();
+            let rs = Register::from_str(get_operand_from_ind(1))?;
+            let rt = Register::from_str(get_operand_from_ind(2))?;
+            let code = "00100000".to_owned() + rs.bits() + rt.bits();
             Ok(code)
         }
 
         ADD | SUB | MUL | DIV => {
             // ADD Rd, Rs, Rt
-            let Rd = Register::from_str(get_operand_from_ind(1))?;
-            let Rs = Register::from_str(get_operand_from_ind(2))?;
-            let Rt = Register::from_str(get_operand_from_ind(3))?;
-            let code = op.as_opcode().to_owned() + Rd.bits() + Rs.bits() + Rt.bits();
+            let rd = Register::from_str(get_operand_from_ind(1))?;
+            let rs = Register::from_str(get_operand_from_ind(2))?;
+            let rt = Register::from_str(get_operand_from_ind(3))?;
+            let code = op.as_opcode().to_owned() + rd.bits() + rs.bits() + rt.bits();
             Ok(code)
         }
 
         Operation::LDR => {
-            let Rd = Register::from_str(get_operand_from_ind(1))?;
-            let Rs = Register::from_str(get_operand_from_ind(2))?;
-            let code = op.as_opcode().to_owned() + Rd.bits() + Rs.bits() + "0000";
+            let rd = Register::from_str(get_operand_from_ind(1))?;
+            let rs = Register::from_str(get_operand_from_ind(2))?;
+            let code = op.as_opcode().to_owned() + rd.bits() + rs.bits() + "0000";
             Ok(code)
         }
 
         Operation::STR => {
-            let Rs = Register::from_str(get_operand_from_ind(1))?;
-            let Rt = Register::from_str(get_operand_from_ind(2))?;
-            let code = op.as_opcode().to_owned() + "0000" + Rs.bits() + Rt.bits();
+            let rs = Register::from_str(get_operand_from_ind(1))?;
+            let rt = Register::from_str(get_operand_from_ind(2))?;
+            let code = op.as_opcode().to_owned() + "0000" + rs.bits() + rt.bits();
             Ok(code)
         }
         Operation::CONST => {
-            let Rd = Register::from_str(get_operand_from_ind(1))?;
+            let rd = Register::from_str(get_operand_from_ind(1))?;
             let imm8 = get_operand_from_ind(2);
             let imm8 = imm8.replace("#", "");
 
             if imm8.parse::<u8>().is_ok() {
                 let code = op.as_opcode().to_owned()
-                    + Rd.bits()
+                    + rd.bits()
                     + format!("{:08b}", imm8.parse::<u8>().expect("msg")).as_str();
                 Ok(code)
             } else {
@@ -371,12 +370,19 @@ fn main() {
         .and_then(|s| s.parse::<u32>().ok())
         .unwrap_or(1);
 
-    // Extract data channels count (number of values in .data directive)
-    let data_channels = memories
+    // Extract .data values as a vector of i8
+
+    let initial_data: Vec<i8> = memories
         .iter()
-        .find(|m| m.parsed_line.tokens.first().unwrap() == ".data")
-        .map(|m| (m.parsed_line.tokens.len() as u32) - 1)
-        .unwrap_or(0);
+        .filter(|m| m.parsed_line.tokens.first().map(|t| t.as_str()) == Some(".data"))
+        .flat_map(|m| {
+            m.parsed_line
+                .tokens
+                .iter()
+                .skip(1) // skip ".data"
+                .map(|tok| tok.parse::<i8>().expect("Invalid i8 in .data"))
+        })
+        .collect();
 
     // Convert operations to hex strings
     let program_memory: Vec<String> = operations
@@ -387,6 +393,9 @@ fn main() {
             format!("0x{:04x}", value)
         })
         .collect();
+
+    dbg!("hellstrideastrd");
+    dbg!(&initial_data);
 
     #[derive(Serialize)]
     struct Hardware {
@@ -403,8 +412,9 @@ fn main() {
         testname: String,
         memory_delay: u32,
         threads: u32,
-        program_memory: Vec<String>,
         hardware: Hardware,
+        program_memory: Vec<String>,
+        initial_data: Vec<i8>,
     }
 
     // Build output
@@ -427,8 +437,9 @@ fn main() {
         testname,
         memory_delay,
         threads,
-        program_memory,
         hardware,
+        program_memory,
+        initial_data,
     };
 
     // Print JSON to stdout
