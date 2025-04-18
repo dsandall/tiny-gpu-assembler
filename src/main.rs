@@ -279,9 +279,18 @@ fn extract_label_assoc_lines(lexed_lines: &Vec<Box<dyn LexedLine>>) -> Vec<(Stri
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let file_path = &args[1];
+    let input_path = &args[1];
+    let output_path = &args[3];
 
-    let contents = fs::read_to_string(file_path).expect("Should have been able to read the file");
+    if "-o" != &args[2] {
+        eprintln!(
+            "Error: expected '-o' as the third argument, got '{}'",
+            &args[2]
+        );
+        std::process::exit(1);
+    }
+
+    let contents = fs::read_to_string(input_path).expect("Should have been able to read the file");
 
     let lines = contents.lines();
 
@@ -336,31 +345,25 @@ fn main() {
 
     // dbg!(&label_addresses);
 
-    let gexed_lines: Vec<Result<MachineLine, LexError>> = lexed_lines
-        .into_iter()
-        .map(|line| operation_conv(line, label_addresses.clone()))
-        .collect();
+    let mut operations = Vec::new();
+    let mut memories = Vec::new();
 
-    // Construct JSON output
-
-    // Separate operation and memory lines
-    let mut operations: Vec<MachineLine> = Vec::new();
-    let mut memories: Vec<MachineLine> = Vec::new();
-    for res in gexed_lines {
-        match res {
-            Ok(line) => {
-                if line.line_type == LineType::Operation {
-                    operations.push(line);
-                } else if line.line_type == LineType::Memory {
-                    memories.push(line);
-                }
-            }
+    for line in lexed_lines {
+        match operation_conv(line, label_addresses.clone()) {
+            Ok(line) => match line.line_type {
+                LineType::Operation => operations.push(line),
+                LineType::Memory => memories.push(line),
+                _ => {}
+            },
             Err(err) => {
                 eprintln!("Error assembling line: {:?}", err);
                 std::process::exit(1);
             }
         }
     }
+
+    dbg!(&memories);
+    dbg!(&operations);
 
     // Extract threads count (from .threads directive)
     let threads = memories
@@ -394,7 +397,6 @@ fn main() {
         })
         .collect();
 
-    dbg!("hellstrideastrd");
     dbg!(&initial_data);
 
     #[derive(Serialize)]
@@ -418,13 +420,13 @@ fn main() {
     }
 
     // Build output
-    let testname = Path::new(file_path)
+    let testname = Path::new(input_path)
         .file_stem()
         .unwrap()
         .to_str()
         .unwrap()
         .to_string();
-    let memory_delay = 1;
+
     let hardware = Hardware {
         program_addr_bits: 8,
         program_data_bits: 16,
@@ -435,7 +437,7 @@ fn main() {
     };
     let output = Output {
         testname,
-        memory_delay,
+        memory_delay: 1, // makes for faster tests
         threads,
         hardware,
         program_memory,
@@ -443,5 +445,5 @@ fn main() {
     };
 
     // Print JSON to stdout
-    println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    std::fs::write(output_path, serde_json::to_string_pretty(&output).unwrap()).unwrap();
 }
