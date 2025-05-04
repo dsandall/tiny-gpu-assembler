@@ -119,6 +119,7 @@ fn operation_conv(
         BRnzp => {
             //// NZP Shenanigans
 
+            dbg!("BRnzp binary here");
             let branch_instr_string = get_operand_from_ind(0);
             // Extract the "nzp" flags
             let nzp_flags: String = branch_instr_string
@@ -155,17 +156,22 @@ fn operation_conv(
             //// end of nzp shenanigans
 
             // Get the operand (the label or flags part)
-            let req_label = get_operand_from_ind(1);
+            let req_label = get_operand_from_ind(1); // WARN:
+            dbg!("label is: {}", req_label);
 
             if let Some(jump_addr) = label_addresses
                 .iter()
-                .filter_map(|(label, line_num)| req_label.find(label).map(|_| *line_num))
-                .collect::<Vec<u16>>()
-                .first()
+                .filter_map(|(label, line_num)| {
+                    if *req_label == *label {
+                        Some(*line_num)
+                    } else {
+                        None
+                    }
+                })
+                .next()
             {
-                let code = op.as_opcode().to_owned()
-                    + &nzp          // Add the "nzp" flags part to the opcode
-                    + format!("{:08b}", *jump_addr as u8).as_str();
+                let code =
+                    op.as_opcode().to_owned() + &nzp + format!("{:08b}", jump_addr as u16).as_str();
                 Ok(code)
             } else {
                 Err(LexError::InvalidArgument("Bad Immediate".into()))
@@ -373,9 +379,9 @@ fn main() {
         .and_then(|s| s.parse::<u32>().ok())
         .unwrap_or(1);
 
-    // Extract .data values as a vector of i8
+    // Extract .data values as a vector of u8
 
-    let initial_data: Vec<i8> = memories
+    let initial_data: Vec<u8> = memories
         .iter()
         .filter(|m| m.parsed_line.tokens.first().map(|t| t.as_str()) == Some(".data"))
         .flat_map(|m| {
@@ -383,7 +389,7 @@ fn main() {
                 .tokens
                 .iter()
                 .skip(1) // skip ".data"
-                .map(|tok| tok.parse::<i8>().expect("Invalid i8 in .data"))
+                .map(|tok| tok.parse::<u8>().expect("Invalid u8 in .data"))
         })
         .collect();
 
@@ -397,7 +403,7 @@ fn main() {
         })
         .collect();
 
-    dbg!(&initial_data);
+    //dbg!(&initial_data);
 
     #[derive(Serialize)]
     struct Hardware {
@@ -416,7 +422,7 @@ fn main() {
         threads: u32,
         hardware: Hardware,
         program_memory: Vec<String>,
-        initial_data: Vec<i8>,
+        initial_data: Vec<u8>,
     }
 
     // Build output
