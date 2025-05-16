@@ -1,9 +1,7 @@
 ;;;;;;;;;;;;;
 ;
 ;
-; Super slow because it relies on dispatcher 8x
-; (not good, but high thread count)
-; scored 2994 cycles
+; scored 2662 cycles
 ;
 .threads 4
 ;CONST R5, #1 ; #threads

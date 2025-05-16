@@ -1,9 +1,9 @@
 ;;;;;;;;;;;;;
 ;
 ;
-; basic gradient
+; super simple hashing function, just to stress the alu more than the other tests
 ;
-; scored 2994 cycles
+; scored 4708 cycles
 .threads 8
 
 MUL R0, %blockIdx, %blockDim    ; Compute global thread index
