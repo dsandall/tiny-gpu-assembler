@@ -1,7 +1,10 @@
-.threads 4 ;; WARN: this should be 8, but i wanted to simplify tests
-.data 0 1 2 3 4 5 6 7          ; matrix A (1 x 8)
-.data 0 1 2 3 4 5 6 7          ; matrix B (1 x 8)
-
+.threads 8
+.data 1 2 3 4 5 6 7 8        ; matrix A (1 x 8)
+.data 11 12 13 14 15 16 17 18         ; matrix B (1 x 8)
+                               ;@(reset):
+                               ;registers[13] <= block_id;          // %blockIdx
+                               ;registers[14] <= THREADS_PER_BLOCK; // %blockDim
+                               ;registers[15] <= THREAD_ID;         // %threadIdx
 MUL R0, %blockIdx, %blockDim
 ADD R0, R0, %threadIdx         ; i = blockIdx * blockDim + threadIdx
 
