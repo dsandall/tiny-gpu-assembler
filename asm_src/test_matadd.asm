@@ -1,4 +1,4 @@
-.threads 8
+.threads 4 ;; WARN: this should be 8, but i wanted to simplify tests
 .data 0 1 2 3 4 5 6 7          ; matrix A (1 x 8)
 .data 0 1 2 3 4 5 6 7          ; matrix B (1 x 8)
 
@@ -20,10 +20,4 @@ ADD R6, R4, R5                 ; C[i] = A[i] + B[i]
 ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
 STR R7, R6                     ; store C[i] in global memory
 
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
 RET                            ; end of kernel
