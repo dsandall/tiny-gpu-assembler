@@ -1,6 +1,6 @@
 .threads 32
 ; matrix A (1 x 32)
-.data 1 2 3 4 5 6 7 8
+.data 1  2  3  4  5  6  7  8
 .data 11 12 13 14 15 16 17 18
 .data 21 22 23 24 25 26 27 28
 .data 31 32 33 34 35 36 37 38
@@ -9,7 +9,6 @@
 .data 51 52 53 54 55 56 57 58
 .data 61 62 63 64 65 66 67 68
 .data 71 72 73 74 75 76 77 78
-; matrix C (1 x 32):
                                ;@(reset):
                                ;registers[13] <= block_id;          // %blockIdx
                                ;registers[14] <= THREADS_PER_BLOCK; // %blockDim
