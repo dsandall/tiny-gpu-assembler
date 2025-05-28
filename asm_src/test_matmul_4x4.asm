@@ -10,6 +10,7 @@
 .data 1  2  3  4
 .data 5  6  7  3
 
+NOP ; dumb fix for hardware issue
 MUL R0, %blockIdx, %blockDim
 ADD R0, R0, %threadIdx         ; i = blockIdx * blockDim + threadIdx
 

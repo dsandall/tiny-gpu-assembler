@@ -8,6 +8,7 @@
 .threads 64
 ;CONST R5, #1 ; #threads
 
+NOP ; dumb fix for hardware issue
 MUL R0, %blockIdx, %blockDim    ; Compute global thread index
 ADD R0, R0, %threadIdx          ; R0 = thread ID
 CONST R8, #255 ; max color

@@ -1,18 +1,19 @@
 .threads 32
 ; matrix A (1 x 32)
-.data 1  2  3  4  5  6  7  8
-.data 11 12 13 14 15 16 17 18
-.data 21 22 23 24 25 26 27 28
-.data 31 32 33 34 35 36 37 38
+.data 1  2  3  4  5  6  7  8  9  10
+.data 11 12 13 14 15 16 17 18 19 20
+.data 21 22 23 24 25 26 27 28 29 30
+.data 31 32 
 ; matrix B (1 x 32)
-.data 41 42 43 44 45 46 47 48
-.data 51 52 53 54 55 56 57 58
-.data 61 62 63 64 65 66 67 68
-.data 71 72 73 74 75 76 77 78
+.data 33 34 35 36 37 38 39 40 41 42
+.data 43 44 45 46 47 48 49 50 51 52
+.data 53 54 55 56 57 58 59 60 61 62
+.data 63 64
                                ;@(reset):
                                ;registers[13] <= block_id;          // %blockIdx
                                ;registers[14] <= THREADS_PER_BLOCK; // %blockDim
                                ;registers[15] <= THREAD_ID;         // %threadIdx
+NOP ; dumb fix for hardware issue
 MUL R0, %blockIdx, %blockDim
 ADD R0, R0, %threadIdx         ; i = blockIdx * blockDim + threadIdx
 
