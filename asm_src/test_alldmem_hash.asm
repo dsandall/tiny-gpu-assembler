@@ -6,11 +6,11 @@
 ; scored 4708 cycles
 .threads 8
 
+CONST R8, #255 ; max color
+CONST R1, #1 ; spread
 MUL R0, %blockIdx, %blockDim    ; Compute global thread index
 ADD R0, R0, %threadIdx          ; R0 = thread ID
-CONST R8, #255 ; max color
 
-CONST R1, #1 ; spread
 MUL R0, R0, R1 ; apply spread
 CONST R5, #8 ; when this is equal to (number hardware threads * spread), it writes in clean lines
 CONST R4, #1 ; inc tracker

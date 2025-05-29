@@ -6,12 +6,12 @@
 .threads 8
 ;CONST R5, #1 ; #threads
 
+CONST R2, #0  ; tracker
 CONST R1, #8 ; #spread
 MUL R0, %blockIdx, %blockDim    ; Compute global thread index
 ADD R0, R0, %threadIdx          ; R0 = thread ID
 MUL R0, R0, R1 ; apply spread
 
-CONST R2, #0  ; tracker
 
 LOOP: 
   CONST R1, #1 ;

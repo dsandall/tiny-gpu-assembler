@@ -7,13 +7,11 @@
 ;
 .threads 64
 ;CONST R5, #1 ; #threads
-
-NOP ; dumb fix for hardware issue
+CONST R8, #255 ; max color
+CONST R1, #4 ; #spread
 MUL R0, %blockIdx, %blockDim    ; Compute global thread index
 ADD R0, R0, %threadIdx          ; R0 = thread ID
-CONST R8, #255 ; max color
 
-CONST R1, #4 ; #spread
 MUL R0, R0, R1 ; apply spread
 
 CONST R2, #0  ; tracker
