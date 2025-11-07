@@ -286,7 +286,6 @@ fn extract_label_assoc_lines(lexed_lines: &Vec<Box<dyn LexedLine>>) -> Vec<(Stri
 fn main() {
     let args: Vec<String> = env::args().collect();
     let input_path = &args[1];
-    let output_path = &args[3];
 
     if "-o" != &args[2] {
         eprintln!(
@@ -295,6 +294,8 @@ fn main() {
         );
         std::process::exit(1);
     }
+
+    let output_path = &args[3];
 
     let contents = fs::read_to_string(input_path).expect("Should have been able to read the file");
 

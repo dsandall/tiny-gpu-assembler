@@ -3,7 +3,7 @@
 
 # Usage:
 - install rust and cargo
-- ``cargo run [source.asm] > [output.py.asm]
+- ``cargo run [source.asm] -o [output.py.asm]
 - make sure to test any generated code with a sensible test case using the CocoTB simulator
 
 # Repository Contents
